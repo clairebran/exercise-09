@@ -1,0 +1,155 @@
+---
+title: "Exercise 9"
+author: "Claire Brandes"
+date: "`r Sys.Date()`"
+output: 
+  prettydoc::html_pretty:
+    theme: leonids
+    toc: yes
+---
+
+# Exercise 9: Practice Simple Linear Regression
+
+# Step 1
+
+Loading data
+
+```{r}
+library(tidyverse)
+
+f <- "https://raw.githubusercontent.com/difiore/ada-2024-datasets/main/Street_et_al_2017.csv"
+d <- read_csv(f, col_names = TRUE)
+```
+
+Exploratory data analysis (median, min, max, 1st and 3rd quartiles, mean, sd)
+
+```{r}
+library(skimr)
+d <- na.omit(d)
+my_skim <- skim_with(numeric = sfl( 
+                                   p0 = NULL,
+                                   p50 = NULL,
+                                   p100 = NULL,
+                                   hist = NULL,
+                                   median, 
+                                   min, 
+                                   max, 
+                                   p25 = ~ quantile(., probs = .25), 
+                                   p75 = ~quantile(., probs = .75),
+                                   mean, 
+                                   sd)) 
+my_skim(d, where(is.numeric))
+```
+
+## Step 2
+
+Plot brain size as a function of social group size, longevity, juvenile period length, and reproductive lifespan
+
+```{r}
+sgs_ECV <- ggplot(d, aes(x = Group_size, y = ECV)) + 
+  geom_point() + 
+  theme_classic() +
+  xlab("Social Group Size") + ylab("Brain Size")
+
+Lon_ECV <- ggplot(d, aes(x = Longevity, y = ECV)) +
+  geom_point() +
+  theme_classic() +
+  xlab("Longevity") + ylab("Brain Size")
+
+jpl_ECV <- ggplot(d, aes(x = Weaning, y = ECV)) +
+  geom_point() +
+  theme_classic() +
+  xlab("Juvenile Period Length") + ylab("Brain Size")
+
+repro_ECV <- ggplot(d, aes(x = Repro_lifespan, y = ECV)) +
+  geom_point() +
+  theme_classic() +
+  xlab("Reproductive Lifespan") + ylab("Brain Size")
+
+library(ggpubr)
+ggarrange(sgs_ECV, Lon_ECV, jpl_ECV, repro_ECV)
+```
+
+## Step 3
+
+Derive by hand the ordinary least squares regression coefficients $\beta1$ and $\beta0$ for ECV as a function of social group size
+
+```{r}
+s3 <- d %>% filter(!is.na(Group_size), !is.na(ECV))
+(b1 <- cov(s3$Group_size, s3$ECV)/var(s3$Group_size))
+(b0 <- mean(s3$ECV) - (b1*mean(s3$Group_size)))
+```
+
+## Step 4
+
+Confirm that you get the same results using the lm() function
+
+```{r}
+(m <- lm(ECV ~ Group_size, data = s3))
+```
+
+## Step 5
+
+Repeat the analysis above for catarrhines, platyrrhines, and strepsirrhines separately. 
+
+for Catarrhines:
+```{r}
+cat <- s3 %>%
+  filter(Taxonomic_group == "Catarrhini")
+
+lm(ECV ~ Group_size, data = cat)
+```
+
+for Platyrrhines:
+
+```{r}
+plat <- s3 %>%
+  filter(Taxonomic_group == "Platyrrhini")
+
+lm(ECV ~ Group_size, data = plat)
+```
+
+for Strepsirhines:
+
+```{r}
+strep <- s3 %>%
+  filter(Taxonomic_group == "Strepsirhini")
+
+lm(ECV ~ Group_size, data = strep)
+```
+
+The coefficients looks like they differ among the three groups. To determine if they are meaningfully different I could generate a test statistic for observed differences in coefficient values, generate a null distribution of coefficient values, and permute group assignments for each line of data. 
+
+## Step 6
+
+For the first regression of ECV on social group size, calculate the standard error for the slope coefficient, the 95% CI, and the *p* value associated with this coefficient by hand.
+
+```{r}
+# Calculating error sum of squares
+SSE <- sum((m$model$ECV - m$fitted.values)^2)
+
+# Calculating error mean sum of squares
+MSE <- SSE/74
+
+# Calculating sum squares of group size 
+SSX <- sum((m$model$Group_size - mean(m$model$Group_size))^2)
+
+# Calculating standard error in B1 (slope coefficient)
+(se_b1 <- sqrt(MSE/SSX))
+```
+
+Calculating p-value and CI: step incomplete 
+
+Test statistic =  group_size estimate / group_size std. error 
+
+```{r}
+2.874 / 0.5732771
+```
+
+Extract same information from the results of running the lm() function:
+
+```{r}
+library(broom)
+tidy(m)
+```
+
